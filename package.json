@@ -1,0 +1,108 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "mise-manager",
+  "title": "mise manager",
+  "description": "Allows you ability to manage",
+  "icon": "extension-icon.png",
+  "author": "imbolt",
+  "platforms": [
+    "macOS",
+    "Windows"
+  ],
+  "categories": [
+    "Productivity",
+    "Developer Tools",
+    "System",
+    "Applications"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "show-installed",
+      "title": "show installed",
+      "description": "",
+      "mode": "view"
+    },
+    {
+      "name": "search",
+      "title": "search",
+      "description": "find dev tools",
+      "mode": "view"
+    },
+    {
+      "name": "prune",
+      "title": "prune",
+      "description": "clean up of installed tools",
+      "mode": "no-view"
+    },
+    {
+      "name": "show-outdated",
+      "title": "show outdated",
+      "description": "shows outdated tools",
+      "mode": "view"
+    },
+    {
+      "name": "doctor",
+      "title": "doctor",
+      "description": "check mise installation for possible problems",
+      "mode": "view"
+    },
+    {
+      "name": "settings",
+      "title": "settings",
+      "description": "change seettings to mise",
+      "mode": "view"
+    },
+    {
+      "name": "add-plugin",
+      "title": "add plugin",
+      "description": "add a plugin to mise",
+      "mode": "view"
+    },
+    {
+      "name": "remove-plugin",
+      "title": "remove plugin",
+      "description": "remove plugin from mise",
+      "mode": "view"
+    },
+    {
+      "name": "open-cache-directory",
+      "title": "open cache directory",
+      "description": "opens cache folder",
+      "mode": "no-view"
+    },
+    {
+      "name": "install-using-backend",
+      "title": "install using backend",
+      "description": "install a tool using a backend",
+      "mode": "view"
+    }
+  ],
+  "tools": [
+    {
+      "name": "mise",
+      "title": "mise",
+      "description": "mise is a tool that manages installations of programming language runtimes and other tools for local development. For example, it can be used to manage multiple versions of Node.js, Python, Ruby, Go, etc. on the same machine."
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.103.3",
+    "@raycast/utils": "^1.17.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
