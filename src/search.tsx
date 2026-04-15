@@ -1,89 +1,122 @@
-import { ActionPanel, Action, List } from "@raycast/api";
-import { useFetch } from "@raycast/utils";
-import { useState } from "react";
-import { URLSearchParams } from "node:url";
+import { Action, ActionPanel, Icon, List } from "@raycast/api";
+import { usePromise } from "@raycast/utils";
+import { useEffect, useMemo, useState } from "react";
+import {
+  listRegistryEntries,
+  searchMiseRegistry,
+  MiseRegistryEntry,
+  listInstalledTools,
+  formatMiseError,
+} from "./tools/mise";
+import { SearchResultItem } from "./components/SearchResultItem";
 
-export default function Command() {
+const RECOMMENDED_TOOLS = ["cargo-binstall", "jdx/usage", "sccache"];
+
+export default function SearchRegistryCommand() {
   const [searchText, setSearchText] = useState("");
-  const { data, isLoading } = useFetch(
-    "https://api.npms.io/v2/search?" +
-      // send the search query to the API
-      new URLSearchParams({ q: searchText.length === 0 ? "@raycast/api" : searchText }),
-    {
-      parseResponse: parseFetchResponse,
-    },
-  );
+  const debouncedQuery = useDebounced(searchText, 400);
+
+  const { data, isLoading, error, revalidate } = usePromise(searchMiseRegistry, [debouncedQuery], {
+    execute: debouncedQuery.trim().length > 0,
+  });
+  const { data: registryEntries } = usePromise(listRegistryEntries, []);
+  const { data: installedTools } = usePromise(listInstalledTools, []);
+
+  const installedToolNames = useMemo(() => new Set(installedTools?.map((t) => t.name)), [installedTools]);
+
+  const entries = data ?? [];
+  const registryMap = useMemo(() => {
+    const map = new Map<string, MiseRegistryEntry>();
+    registryEntries?.forEach((entry) => {
+      map.set(entry.name, entry);
+    });
+    return map;
+  }, [registryEntries]);
+
+  const results = entries.map((entry) => {
+    const registryInfo = registryMap.get(entry.name);
+    return {
+      ...entry,
+      identifier: entry.identifier ?? registryInfo?.identifier,
+      description: entry.description ?? registryInfo?.description,
+      url: entry.url ?? registryInfo?.url,
+      backends: entry.backends ?? registryInfo?.backends ?? [],
+    };
+  });
+
+  const recommendedResults = useMemo(() => {
+    return RECOMMENDED_TOOLS.map((name) => {
+      const registryName = name === "jdx/usage" ? "usage" : name;
+      const registryInfo = registryMap.get(registryName);
+      return {
+        name,
+        identifier: registryInfo?.identifier,
+        description: registryInfo?.description,
+        url: registryInfo?.url,
+        backends: registryInfo?.backends ?? [],
+      };
+    });
+  }, [registryMap]);
 
   return (
     <List
       isLoading={isLoading}
       onSearchTextChange={setSearchText}
-      searchBarPlaceholder="Search npm packages..."
+      searchText={searchText}
       throttle
+      searchBarPlaceholder="Search mise registry (e.g., node, cargo:ubi)"
     >
-      <List.Section title="Results" subtitle={data?.length + ""}>
-        {data?.map((searchResult) => <SearchListItem key={searchResult.name} searchResult={searchResult} />)}
-      </List.Section>
+      {error ? (
+        <List.EmptyView
+          icon={Icon.ExclamationMark}
+          title="Search failed"
+          description={formatMiseError(error)}
+          actions={
+            <ActionPanel>
+              <Action title="Retry" onAction={() => revalidate()} />
+            </ActionPanel>
+          }
+        />
+      ) : null}
+
+      {!error && debouncedQuery.trim().length === 0 ? (
+        <List.Section title="Recommended Tools">
+          {recommendedResults.map((entry) => (
+            <SearchResultItem
+              key={`recommended-${entry.name}`}
+              entry={entry}
+              isInstalled={installedToolNames.has(entry.name)}
+            />
+          ))}
+        </List.Section>
+      ) : null}
+
+      {!error && debouncedQuery.trim().length > 0 && entries.length === 0 && !isLoading ? (
+        <List.EmptyView
+          icon={Icon.MagnifyingGlass}
+          title="No tools found"
+          description={`No registry entries matched “${debouncedQuery}”.`}
+        />
+      ) : null}
+
+      {results.map((entry) => (
+        <SearchResultItem
+          key={`${entry.name}-${entry.identifier ?? ""}`}
+          entry={entry}
+          isInstalled={installedToolNames.has(entry.name)}
+        />
+      ))}
     </List>
   );
 }
 
-function SearchListItem({ searchResult }: { searchResult: SearchResult }) {
-  return (
-    <List.Item
-      title={searchResult.name}
-      subtitle={searchResult.description}
-      accessories={[{ text: searchResult.username }]}
-      actions={
-        <ActionPanel>
-          <ActionPanel.Section>
-            <Action.OpenInBrowser title="Open in Browser" url={searchResult.url} />
-          </ActionPanel.Section>
-          <ActionPanel.Section>
-            <Action.CopyToClipboard
-              title="Copy Install Command"
-              content={`npm install ${searchResult.name}`}
-              shortcut={{ modifiers: ["cmd"], key: "." }}
-            />
-          </ActionPanel.Section>
-        </ActionPanel>
-      }
-    />
-  );
-}
+function useDebounced(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value);
 
-/** Parse the response from the fetch query into something we can display */
-async function parseFetchResponse(response: Response) {
-  const json = (await response.json()) as
-    | {
-        results: {
-          package: {
-            name: string;
-            description?: string;
-            publisher?: { username: string };
-            links: { npm: string };
-          };
-        }[];
-      }
-    | { code: string; message: string };
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
 
-  if (!response.ok || "message" in json) {
-    throw new Error("message" in json ? json.message : response.statusText);
-  }
-
-  return json.results.map((result) => {
-    return {
-      name: result.package.name,
-      description: result.package.description,
-      username: result.package.publisher?.username,
-      url: result.package.links.npm,
-    } as SearchResult;
-  });
-}
-
-interface SearchResult {
-  name: string;
-  description?: string;
-  username?: string;
-  url: string;
+  return debounced;
 }
